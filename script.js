@@ -783,7 +783,31 @@ function loadRecordsFromStorage() {
 // 数据管理功能
 function showDataManagement() {
     updateStorageInfo();
-    document.getElementById('dataManagementModal').style.display = 'block';
+    const modal = document.getElementById('dataManagementModal');
+    modal.style.display = 'block';
+    
+    // 检查是否需要滚动提示
+    setTimeout(() => {
+        const modalBody = modal.querySelector('.modal-body');
+        if (modalBody.scrollHeight > modalBody.clientHeight) {
+            modalBody.classList.add('has-scroll');
+            
+            // 添加滚动提示元素
+            if (!modalBody.querySelector('.scroll-indicator')) {
+                const indicator = document.createElement('div');
+                indicator.className = 'scroll-indicator';
+                indicator.textContent = '↓ 可滚动查看更多';
+                modalBody.appendChild(indicator);
+                
+                // 滚动时隐藏提示
+                modalBody.addEventListener('scroll', function() {
+                    if (this.scrollTop > 20) {
+                        indicator.style.opacity = '0';
+                    }
+                });
+            }
+        }
+    }, 100);
 }
 
 function closeDataManagementModal() {
