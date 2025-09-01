@@ -10,7 +10,7 @@ let currentEditingRecord = null;
 let currentTab = 'all';
 
 // 本地存储管理
-const STORAGE_KEY = 'personal_finance_records';
+const STORAGE_KEY = 'sccipc_lab_finance_records';
 const STORAGE_VERSION = '2.0';
 
 // 分类配置
