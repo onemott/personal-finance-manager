@@ -255,13 +255,12 @@ function selectAll() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const recordCheckboxes = document.querySelectorAll('.record-checkbox');
     
-    if (selectAllCheckbox) {
+    if (selectAllCheckbox && recordCheckboxes.length > 0) {
         recordCheckboxes.forEach(checkbox => {
             checkbox.checked = selectAllCheckbox.checked;
         });
+        updateBatchDeleteButton();
     }
-    
-    updateBatchDeleteButton();
 }
 
 function toggleSelectAll() {
