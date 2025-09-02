@@ -59,7 +59,7 @@ function debounce(func, wait) {
     };
 }
 
-// 显示数据管理界面
+// 显示数据管理界面 - 匹配HTML中的函数调用
 function showDataManagement() {
     console.log('显示数据管理界面');
     const modal = document.getElementById('dataModal');
@@ -69,12 +69,21 @@ function showDataManagement() {
     }
 }
 
+// 数据管理模态框函数 - 兼容HTML调用
+function showDataManagementModal() {
+    showDataManagement();
+}
+
 // 关闭数据管理界面
 function closeDataManagement() {
     const modal = document.getElementById('dataModal');
     if (modal) {
         modal.style.display = 'none';
     }
+}
+
+function closeDataManagementModal() {
+    closeDataManagement();
 }
 
 // 显示导出数据界面
@@ -86,12 +95,21 @@ function showExportData() {
     }
 }
 
+// 导出数据模态框函数 - 兼容HTML调用
+function showExportDataModal() {
+    showExportData();
+}
+
 // 关闭导出界面
 function closeExportModal() {
     const modal = document.getElementById('exportModal');
     if (modal) {
         modal.style.display = 'none';
     }
+}
+
+function closeExportDataModal() {
+    closeExportModal();
 }
 
 // 显示新增记录界面
@@ -113,12 +131,21 @@ function showAddRecord() {
     }
 }
 
+// 新增记录模态框函数 - 兼容HTML调用
+function showAddRecordModal() {
+    showAddRecord();
+}
+
 // 关闭新增记录界面
 function closeAddRecord() {
     const modal = document.getElementById('addRecordModal');
     if (modal) {
         modal.style.display = 'none';
     }
+}
+
+function closeAddRecordModal() {
+    closeAddRecord();
 }
 
 // 添加新记录
