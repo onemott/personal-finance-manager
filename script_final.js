@@ -268,9 +268,11 @@ function toggleSelectAll() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const recordCheckboxes = document.querySelectorAll('.record-checkbox');
     
-    if (selectAllCheckbox) {
+    if (selectAllCheckbox && recordCheckboxes) {
         recordCheckboxes.forEach(checkbox => {
-            checkbox.checked = selectAllCheckbox.checked;
+            if (checkbox) {
+                checkbox.checked = selectAllCheckbox.checked;
+            }
         });
         updateBatchDeleteButton();
     }
