@@ -607,24 +607,64 @@ function handleAlipayImport(event) {
             const lines = csvData.split('\n');
             const importedRecords = [];
             
-            // 跳过标题行，从第二行开始解析
-            for (let i = 1; i < lines.length; i++) {
+            console.log('支付宝CSV文件行数:', lines.length);
+            console.log('前几行内容:', lines.slice(0, 5));
+            
+            // 支付宝CSV格式通常是：交易时间,交易分类,交易对方,商品说明,收/支,金额,收/付款方式,交易状态,交易订单号,商户订单号,备注
+            // 跳过前几行标题和说明，找到实际数据行
+            let dataStartIndex = 0;
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.includes('交易时间') && line.includes('金额')) {
+                    dataStartIndex = i + 1;
+                    break;
+                }
+            }
+            
+            console.log('数据开始行:', dataStartIndex);
+            
+            for (let i = dataStartIndex; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
                 
-                const columns = line.split(',');
-                if (columns.length >= 5) {
-                    const record = {
-                        id: Date.now().toString() + '_' + i,
-                        date: columns[0].replace(/"/g, ''),
-                        type: parseFloat(columns[4]) > 0 ? 'income' : 'expense',
-                        category: '支付宝导入',
-                        description: columns[1].replace(/"/g, ''),
-                        amount: Math.abs(parseFloat(columns[4]) || 0),
-                        notes: '从支付宝账单导入',
-                        createTime: new Date().toISOString()
-                    };
-                    importedRecords.push(record);
+                // 处理CSV中的引号和逗号
+                const columns = parseCSVLine(line);
+                console.log(`第${i}行解析结果:`, columns);
+                
+                if (columns.length >= 6) {
+                    // 解析日期 (格式: 2024-01-15 10:30:00)
+                    let dateStr = columns[0].replace(/"/g, '').trim();
+                    if (dateStr.includes(' ')) {
+                        dateStr = dateStr.split(' ')[0]; // 只取日期部分
+                    }
+                    
+                    // 解析金额 (移除¥符号和空格)
+                    let amountStr = columns[5].replace(/"/g, '').replace(/¥/g, '').replace(/\s/g, '');
+                    const amount = Math.abs(parseFloat(amountStr) || 0);
+                    
+                    // 判断收支类型
+                    const transactionType = columns[4].replace(/"/g, '').trim();
+                    const type = (transactionType === '收入' || transactionType.includes('收')) ? 'income' : 'expense';
+                    
+                    // 获取交易对方和商品说明
+                    const counterparty = columns[2].replace(/"/g, '').trim();
+                    const description = columns[3].replace(/"/g, '').trim();
+                    const finalDescription = description || counterparty || '支付宝交易';
+                    
+                    if (amount > 0 && dateStr) {
+                        const record = {
+                            id: Date.now().toString() + '_alipay_' + i,
+                            date: dateStr,
+                            type: type,
+                            category: '支付宝导入',
+                            description: finalDescription,
+                            amount: amount,
+                            notes: `从支付宝账单导入 - ${counterparty}`,
+                            createTime: new Date().toISOString()
+                        };
+                        importedRecords.push(record);
+                        console.log('成功解析记录:', record);
+                    }
                 }
             }
             
@@ -645,6 +685,29 @@ function handleAlipayImport(event) {
         }
     };
     reader.readAsText(file, 'utf-8');
+}
+
+// CSV行解析辅助函数
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    
+    result.push(current);
+    return result;
 }
 
 function handleWechatImport(event) {
