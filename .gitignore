@@ -1,5 +1,4 @@
 # 忽略不必要的文件
-*.md
 *.bat
 temp_fix/
 .codebuddy/
@@ -8,4 +7,6 @@ script_*.js
 文件内容获取工具.html
 紧急JavaScript修复.html
 CNAME示例
-LICENSE
+
+# 保留重要文件
+!README.md
