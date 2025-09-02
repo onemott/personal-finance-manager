@@ -9,6 +9,8 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- XLSX解析库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <!-- PWA 支持 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -274,11 +276,31 @@
                 <div class="data-management-section">
                     <h4><i class="fas fa-upload"></i> 导入数据</h4>
                     <div class="import-section">
-                        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleFileImport(event)">
-                        <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">
-                            <i class="fas fa-file-upload"></i> 选择JSON文件
-                        </button>
-                        <p class="help-text">支持导入JSON格式的记录数据文件</p>
+                        <div class="import-options">
+                            <div class="import-option">
+                                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleFileImport(event)">
+                                <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">
+                                    <i class="fas fa-file-code"></i> JSON数据文件
+                                </button>
+                                <p class="help-text">导入系统导出的JSON格式数据</p>
+                            </div>
+                            
+                            <div class="import-option">
+                                <input type="file" id="alipayFile" accept=".csv" style="display: none;" onchange="handleAlipayImport(event)">
+                                <button class="btn btn-primary" onclick="document.getElementById('alipayFile').click()">
+                                    <i class="fas fa-alipay"></i> 支付宝账单
+                                </button>
+                                <p class="help-text">导入支付宝交易明细CSV文件</p>
+                            </div>
+                            
+                            <div class="import-option">
+                                <input type="file" id="wechatFile" accept=".xlsx,.xls" style="display: none;" onchange="handleWechatImport(event)">
+                                <button class="btn btn-success" onclick="document.getElementById('wechatFile').click()">
+                                    <i class="fas fa-weixin"></i> 微信账单
+                                </button>
+                                <p class="help-text">导入微信支付账单XLSX文件</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

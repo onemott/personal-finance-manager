@@ -1161,3 +1161,365 @@ setInterval(function() {
         console.log('自动保存记录数据');
     }
 }, 5 * 60 * 1000);
+
+// 支付宝账单导入功能
+function handleAlipayImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        showNotification('请选择CSV格式的支付宝账单文件', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const csvContent = e.target.result;
+            const importedRecords = parseAlipayCSV(csvContent);
+            
+            if (importedRecords.length === 0) {
+                showNotification('未找到有效的交易记录', 'warning');
+                return;
+            }
+            
+            // 重新分配ID以避免冲突
+            const maxId = records.length > 0 ? Math.max(...records.map(r => r.id)) : 0;
+            const processedRecords = importedRecords.map((record, index) => ({
+                ...record,
+                id: maxId + index + 1
+            }));
+            
+            records.push(...processedRecords);
+            filteredRecords = [...records];
+            
+            saveRecordsToStorage();
+            updateDisplay();
+            closeDataManagementModal();
+            
+            showNotification(`成功导入 ${processedRecords.length} 条支付宝交易记录`, 'success');
+        } catch (error) {
+            console.error('支付宝账单解析失败:', error);
+            showNotification('支付宝账单文件格式错误或损坏', 'error');
+        }
+    };
+    
+    reader.readAsText(file, 'utf-8');
+    event.target.value = '';
+}
+
+// 解析支付宝CSV文件
+function parseAlipayCSV(csvContent) {
+    const lines = csvContent.split('
+');
+    const records = [];
+    
+    // 查找数据开始行（通常包含表头）
+    let dataStartIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('交易时间') || lines[i].includes('商品说明') || lines[i].includes('交易金额')) {
+            dataStartIndex = i;
+            break;
+        }
+    }
+    
+    if (dataStartIndex === -1) {
+        throw new Error('未找到有效的数据表头');
+    }
+    
+    const headers = parseCSVLine(lines[dataStartIndex]);
+    
+    // 查找关键列的索引
+    const timeIndex = findColumnIndex(headers, ['交易时间', '时间']);
+    const descIndex = findColumnIndex(headers, ['商品说明', '交易对方', '商品名称', '备注']);
+    const amountIndex = findColumnIndex(headers, ['交易金额', '金额']);
+    const statusIndex = findColumnIndex(headers, ['交易状态', '状态']);
+    const typeIndex = findColumnIndex(headers, ['收/支', '类型', '交易类型']);
+    
+    // 解析数据行
+    for (let i = dataStartIndex + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        try {
+            const columns = parseCSVLine(line);
+            if (columns.length < Math.max(timeIndex, descIndex, amountIndex) + 1) continue;
+            
+            const timeStr = columns[timeIndex] || '';
+            const description = columns[descIndex] || '支付宝交易';
+            const amountStr = columns[amountIndex] || '0';
+            const status = columns[statusIndex] || '';
+            const typeStr = columns[typeIndex] || '';
+            
+            // 跳过无效或失败的交易
+            if (status.includes('失败') || status.includes('关闭') || !timeStr) continue;
+            
+            // 解析时间
+            const date = parseAlipayDate(timeStr);
+            if (!date) continue;
+            
+            // 解析金额
+            const amount = parseAmount(amountStr);
+            if (amount === 0) continue;
+            
+            // 判断收入还是支出
+            const isIncome = typeStr.includes('收入') || typeStr.includes('+') || amount > 0;
+            const recordType = isIncome ? 'income' : 'expense';
+            
+            // 分类映射
+            const category = mapAlipayCategory(description, recordType);
+            
+            records.push({
+                type: recordType,
+                category: category,
+                description: description.substring(0, 100), // 限制长度
+                amount: Math.abs(amount).toFixed(2),
+                date: date,
+                notes: `支付宝导入 - ${status}`
+            });
+        } catch (error) {
+            console.warn('跳过无效行:', line, error);
+            continue;
+        }
+    }
+    
+    return records;
+}
+
+// 微信账单导入功能
+function handleWechatImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+        showNotification('请选择XLSX或XLS格式的微信账单文件', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            // 获取第一个工作表
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            
+            const importedRecords = parseWechatXLSX(worksheet);
+            
+            if (importedRecords.length === 0) {
+                showNotification('未找到有效的交易记录', 'warning');
+                return;
+            }
+            
+            // 重新分配ID以避免冲突
+            const maxId = records.length > 0 ? Math.max(...records.map(r => r.id)) : 0;
+            const processedRecords = importedRecords.map((record, index) => ({
+                ...record,
+                id: maxId + index + 1
+            }));
+            
+            records.push(...processedRecords);
+            filteredRecords = [...records];
+            
+            saveRecordsToStorage();
+            updateDisplay();
+            closeDataManagementModal();
+            
+            showNotification(`成功导入 ${processedRecords.length} 条微信交易记录`, 'success');
+        } catch (error) {
+            console.error('微信账单解析失败:', error);
+            showNotification('微信账单文件格式错误或损坏', 'error');
+        }
+    };
+    
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+}
+
+// 解析微信XLSX文件
+function parseWechatXLSX(worksheet) {
+    const records = [];
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+    
+    // 查找表头行
+    let headerRow = -1;
+    for (let row = range.s.r; row <= range.e.r; row++) {
+        const cellA = worksheet[XLSX.utils.encode_cell({ r: row, c: 0 })];
+        if (cellA && cellA.v && (cellA.v.toString().includes('交易时间') || cellA.v.toString().includes('时间'))) {
+            headerRow = row;
+            break;
+        }
+    }
+    
+    if (headerRow === -1) {
+        throw new Error('未找到有效的数据表头');
+    }
+    
+    // 读取表头
+    const headers = [];
+    for (let col = range.s.c; col <= range.e.c; col++) {
+        const cell = worksheet[XLSX.utils.encode_cell({ r: headerRow, c: col })];
+        headers.push(cell ? cell.v.toString() : '');
+    }
+    
+    // 查找关键列的索引
+    const timeIndex = findColumnIndex(headers, ['交易时间', '时间']);
+    const descIndex = findColumnIndex(headers, ['商品', '交易对方', '商品说明', '备注']);
+    const amountIndex = findColumnIndex(headers, ['金额', '交易金额']);
+    const statusIndex = findColumnIndex(headers, ['当前状态', '交易状态', '状态']);
+    const typeIndex = findColumnIndex(headers, ['收/支', '类型', '交易类型']);
+    
+    // 解析数据行
+    for (let row = headerRow + 1; row <= range.e.r; row++) {
+        try {
+            const timeCell = worksheet[XLSX.utils.encode_cell({ r: row, c: timeIndex })];
+            const descCell = worksheet[XLSX.utils.encode_cell({ r: row, c: descIndex })];
+            const amountCell = worksheet[XLSX.utils.encode_cell({ r: row, c: amountIndex })];
+            const statusCell = worksheet[XLSX.utils.encode_cell({ r: row, c: statusIndex })];
+            const typeCell = worksheet[XLSX.utils.encode_cell({ r: row, c: typeIndex })];
+            
+            const timeStr = timeCell ? timeCell.v.toString() : '';
+            const description = descCell ? descCell.v.toString() : '微信交易';
+            const amountStr = amountCell ? amountCell.v.toString() : '0';
+            const status = statusCell ? statusCell.v.toString() : '';
+            const typeStr = typeCell ? typeCell.v.toString() : '';
+            
+            // 跳过无效或失败的交易
+            if (status.includes('失败') || status.includes('已关闭') || !timeStr) continue;
+            
+            // 解析时间
+            const date = parseWechatDate(timeStr);
+            if (!date) continue;
+            
+            // 解析金额
+            const amount = parseAmount(amountStr);
+            if (amount === 0) continue;
+            
+            // 判断收入还是支出
+            const isIncome = typeStr.includes('收入') || typeStr.includes('+') || amount > 0;
+            const recordType = isIncome ? 'income' : 'expense';
+            
+            // 分类映射
+            const category = mapWechatCategory(description, recordType);
+            
+            records.push({
+                type: recordType,
+                category: category,
+                description: description.substring(0, 100), // 限制长度
+                amount: Math.abs(amount).toFixed(2),
+                date: date,
+                notes: `微信导入 - ${status}`
+            });
+        } catch (error) {
+            console.warn('跳过无效行:', row, error);
+            continue;
+        }
+    }
+    
+    return records;
+}
+
+// 辅助函数
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    
+    result.push(current.trim());
+    return result;
+}
+
+function findColumnIndex(headers, possibleNames) {
+    for (let i = 0; i < headers.length; i++) {
+        for (const name of possibleNames) {
+            if (headers[i].includes(name)) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+function parseAmount(amountStr) {
+    // 移除货币符号和空格
+    const cleanAmount = amountStr.replace(/[¥$￥,\s]/g, '');
+    const amount = parseFloat(cleanAmount);
+    return isNaN(amount) ? 0 : amount;
+}
+
+function parseAlipayDate(dateStr) {
+    try {
+        // 支付宝日期格式: 2024-01-01 12:00:00
+        const date = new Date(dateStr.replace(/\s+/g, ' '));
+        return isNaN(date.getTime()) ? null : date;
+    } catch (error) {
+        return null;
+    }
+}
+
+function parseWechatDate(dateStr) {
+    try {
+        // 微信日期格式可能多样: 2024/1/1 12:00:00 或 2024-01-01 12:00:00
+        const normalizedDate = dateStr.replace(/\//g, '-').replace(/\s+/g, ' ');
+        const date = new Date(normalizedDate);
+        return isNaN(date.getTime()) ? null : date;
+    } catch (error) {
+        return null;
+    }
+}
+
+function mapAlipayCategory(description, type) {
+    const desc = description.toLowerCase();
+    
+    if (type === 'income') {
+        if (desc.includes('工资') || desc.includes('薪资')) return 'salary';
+        if (desc.includes('奖金') || desc.includes('红包')) return 'bonus';
+        if (desc.includes('转账') || desc.includes('收款')) return 'other_income';
+        return 'other_income';
+    } else {
+        if (desc.includes('餐') || desc.includes('食') || desc.includes('饭') || desc.includes('外卖')) return 'food';
+        if (desc.includes('交通') || desc.includes('地铁') || desc.includes('公交') || desc.includes('打车') || desc.includes('滴滴')) return 'transport';
+        if (desc.includes('购物') || desc.includes('商城') || desc.includes('超市') || desc.includes('淘宝') || desc.includes('天猫')) return 'shopping';
+        if (desc.includes('娱乐') || desc.includes('电影') || desc.includes('游戏') || desc.includes('KTV')) return 'entertainment';
+        if (desc.includes('水电') || desc.includes('话费') || desc.includes('网费') || desc.includes('房租')) return 'utilities';
+        if (desc.includes('医') || desc.includes('药') || desc.includes('健康')) return 'healthcare';
+        if (desc.includes('教育') || desc.includes('学') || desc.includes('培训')) return 'education';
+        return 'other_expense';
+    }
+}
+
+function mapWechatCategory(description, type) {
+    const desc = description.toLowerCase();
+    
+    if (type === 'income') {
+        if (desc.includes('工资') || desc.includes('薪资')) return 'salary';
+        if (desc.includes('奖金') || desc.includes('红包')) return 'bonus';
+        if (desc.includes('转账') || desc.includes('收款')) return 'other_income';
+        return 'other_income';
+    } else {
+        if (desc.includes('餐') || desc.includes('食') || desc.includes('饭') || desc.includes('外卖') || desc.includes('美团') || desc.includes('饿了么')) return 'food';
+        if (desc.includes('交通') || desc.includes('地铁') || desc.includes('公交') || desc.includes('打车') || desc.includes('滴滴') || desc.includes('共享')) return 'transport';
+        if (desc.includes('购物') || desc.includes('商城') || desc.includes('超市') || desc.includes('拼多多') || desc.includes('京东')) return 'shopping';
+        if (desc.includes('娱乐') || desc.includes('电影') || desc.includes('游戏') || desc.includes('直播')) return 'entertainment';
+        if (desc.includes('水电') || desc.includes('话费') || desc.includes('网费') || desc.includes('房租') || desc.includes('物业')) return 'utilities';
+        if (desc.includes('医') || desc.includes('药') || desc.includes('健康') || desc.includes('挂号')) return 'healthcare';
+        if (desc.includes('教育') || desc.includes('学') || desc.includes('培训') || desc.includes('书')) return 'education';
+        return 'other_expense';
+    }
+}
