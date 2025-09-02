@@ -428,6 +428,28 @@ function editRecord() {
     }
 }
 
+function editRecordById(id) {
+    const record = records.find(r => r.id === id);
+    if (!record) return;
+    
+    currentEditId = id;
+    const modal = document.getElementById('editModal');
+    if (modal) {
+        modal.style.display = 'block';
+        document.getElementById('editModalTitle').textContent = '编辑记录';
+        
+        // 填充表单
+        document.getElementById('editType').value = record.type;
+        document.getElementById('editCategory').value = record.category;
+        document.getElementById('editDescription').value = record.description;
+        document.getElementById('editAmount').value = record.amount;
+        document.getElementById('editDate').value = record.date;
+        document.getElementById('editNotes').value = record.notes || '';
+        
+        updateCategoryOptions();
+    }
+}
+
 function deleteRecord(id) {
     if (!confirm('确定要删除这条记录吗？')) return;
     
@@ -513,20 +535,38 @@ function saveRecord() {
         const index = records.findIndex(r => r.id === currentEditId);
         if (index !== -1) {
             records[index] = { ...records[index], ...recordData };
+            console.log('记录已更新:', records[index]);
         }
     } else {
         // 新增记录
         recordData.id = Date.now().toString();
         records.push(recordData);
+        console.log('新增记录:', recordData);
+        console.log('当前记录总数:', records.length);
     }
     
+    // 确保filteredRecords包含新记录
     filteredRecords = [...records];
+    
+    // 保存数据
     saveRecords();
+    
+    // 更新显示
     updateDashboard();
     updateRecordTable();
+    
+    // 关闭模态框
     closeEditModal();
     
-    alert(currentEditId ? '记录更新成功！' : '记录添加成功！');
+    // 显示成功消息
+    const message = currentEditId ? '记录更新成功！' : '记录添加成功！';
+    alert(message);
+    
+    // 强制刷新表格显示
+    setTimeout(() => {
+        console.log('延迟刷新表格，当前filteredRecords长度:', filteredRecords.length);
+        updateRecordTable();
+    }, 100);
 }
 
 // ===== 数据导入导出功能 =====
@@ -790,9 +830,17 @@ function updateRecordTable() {
         return;
     }
     
-    const tbody = document.querySelector('#recordTable tbody');
+    // 尝试多种方式找到表格tbody
+    let tbody = document.querySelector('#recordTable tbody');
     if (!tbody) {
-        console.warn('未找到记录表格tbody');
+        tbody = document.querySelector('table tbody');
+    }
+    if (!tbody) {
+        tbody = document.querySelector('.records-table tbody');
+    }
+    if (!tbody) {
+        console.warn('未找到记录表格tbody，尝试创建表格');
+        createRecordTable();
         return;
     }
     
@@ -822,7 +870,7 @@ function updateRecordTable() {
                 <button class="btn btn-sm btn-outline" onclick="viewRecord('${record.id}')" title="查看详情">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="btn btn-sm btn-primary" onclick="editRecord('${record.id}')" title="编辑">
+                <button class="btn btn-sm btn-primary" onclick="editRecordById('${record.id}')" title="编辑">
                     <i class="fas fa-edit"></i>
                 </button>
                 <button class="btn btn-sm btn-danger" onclick="deleteRecord('${record.id}')" title="删除">
@@ -945,5 +993,40 @@ document.addEventListener('keydown', function(event) {
         });
     }
 });
+
+// 创建记录表格（如果不存在）
+function createRecordTable() {
+    const container = document.querySelector('.records-container') || document.querySelector('.main-content');
+    if (!container) {
+        console.error('未找到容器来创建表格');
+        return;
+    }
+    
+    const tableHTML = `
+        <div class="table-container">
+            <table id="recordTable" class="records-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()"></th>
+                        <th onclick="sortTable('date')">日期 <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable('type')">类型 <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable('category')">分类 <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable('description')">描述 <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable('amount')">金额 <i class="fas fa-sort"></i></th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML += tableHTML;
+    console.log('已创建记录表格');
+    
+    // 重新尝试更新表格
+    setTimeout(() => updateRecordTable(), 100);
+}
 
 console.log('Script加载完成，所有函数已定义');
