@@ -1,8 +1,9 @@
-// SCCIPC智能车实验室财务管理系统 - 修复版本
+// SCCIPC智能车实验室财务管理系统 - 完全修复版本
 console.log('Script开始加载...');
 
-// 全局变量 - 确保records是数组
+// 全局变量
 let records = [];
+let filteredRecords = [];
 let currentPage = 1;
 const recordsPerPage = 10;
 const STORAGE_KEY = 'sccipc_lab_finance_records';
@@ -39,9 +40,11 @@ function loadRecords() {
             saveRecords();
             console.log('创建了示例数据');
         }
+        filteredRecords = [...records];
     } catch (error) {
         console.error('加载记录失败:', error);
         records = createSampleData();
+        filteredRecords = [...records];
         saveRecords();
     }
 }
@@ -89,42 +92,9 @@ function createSampleData() {
     ];
 }
 
-// 绑定事件监听器
-function bindEventListeners() {
-    // 搜索功能
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', debounce(filterRecords, 300));
-    }
-    
-    // 筛选功能
-    const categoryFilter = document.getElementById('categoryFilter');
-    const typeFilter = document.getElementById('typeFilter');
-    const startDate = document.getElementById('startDate');
-    const endDate = document.getElementById('endDate');
-    
-    if (categoryFilter) categoryFilter.addEventListener('change', filterRecords);
-    if (typeFilter) typeFilter.addEventListener('change', filterRecords);
-    if (startDate) startDate.addEventListener('change', filterRecords);
-    if (endDate) endDate.addEventListener('change', filterRecords);
-}
+// ===== 主要按钮功能 =====
 
-// 防抖函数
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-// ===== 按钮功能函数 =====
-
-// 显示数据管理界面
+// 数据管理功能
 function showDataManagement() {
     console.log('显示数据管理界面');
     const modal = document.getElementById('dataManagementModal');
@@ -137,7 +107,6 @@ function showDataManagement() {
     }
 }
 
-// 关闭数据管理界面
 function closeDataManagementModal() {
     const modal = document.getElementById('dataManagementModal');
     if (modal) {
@@ -157,7 +126,14 @@ function exportData() {
     }
 }
 
-// 显示新增记录界面
+function closeExportModal() {
+    const modal = document.getElementById('exportModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 新增记录功能
 function showAddRecordModal() {
     console.log('显示新增记录界面');
     const modal = document.getElementById('addRecordModal');
@@ -179,7 +155,6 @@ function showAddRecordModal() {
     }
 }
 
-// 关闭新增记录界面
 function closeAddRecordModal() {
     const modal = document.getElementById('addRecordModal');
     if (modal) {
@@ -187,12 +162,73 @@ function closeAddRecordModal() {
     }
 }
 
-// ===== 数据操作函数 =====
+// ===== 标签页切换功能 =====
 
-// 添加新记录
+function switchTab(tabType) {
+    console.log('切换标签页:', tabType);
+    
+    // 更新标签页样式
+    const tabs = document.querySelectorAll('.tab-btn');
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.tab === tabType) {
+            tab.classList.add('active');
+        }
+    });
+    
+    // 根据标签页类型筛选数据
+    if (tabType === 'all') {
+        filteredRecords = [...records];
+    } else if (tabType === 'income') {
+        filteredRecords = records.filter(r => r.type === 'income');
+    } else if (tabType === 'expense') {
+        filteredRecords = records.filter(r => r.type === 'expense');
+    } else if (tabType === 'orders') {
+        filteredRecords = records.filter(r => r.category && r.category.includes('订单'));
+    }
+    
+    updateRecordTable();
+}
+
+// ===== 筛选和搜索功能 =====
+
+function filterRecords() {
+    if (!Array.isArray(records)) {
+        console.error('records不是数组，无法筛选');
+        return;
+    }
+    
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const categoryFilter = document.getElementById('categoryFilter')?.value || '';
+    const typeFilter = document.getElementById('typeFilter')?.value || '';
+    const startDate = document.getElementById('startDate')?.value || '';
+    const endDate = document.getElementById('endDate')?.value || '';
+    
+    filteredRecords = records.filter(record => {
+        const matchesSearch = !searchTerm || 
+            (record.description && record.description.toLowerCase().includes(searchTerm)) ||
+            (record.category && record.category.toLowerCase().includes(searchTerm));
+        
+        const matchesCategory = !categoryFilter || record.category === categoryFilter;
+        const matchesType = !typeFilter || record.type === typeFilter;
+        
+        const matchesDateRange = (!startDate || record.date >= startDate) &&
+                                (!endDate || record.date <= endDate);
+        
+        return matchesSearch && matchesCategory && matchesType && matchesDateRange;
+    });
+    
+    updateRecordTable();
+}
+
+// ===== 数据操作功能 =====
+
 function addRecord() {
     const form = document.getElementById('addRecordForm');
-    if (!form) return;
+    if (!form) {
+        console.error('未找到addRecordForm');
+        return;
+    }
     
     const formData = new FormData(form);
     const newRecord = {
@@ -212,6 +248,7 @@ function addRecord() {
     }
     
     records.push(newRecord);
+    filteredRecords = [...records];
     saveRecords();
     updateDashboard();
     updateRecordTable();
@@ -220,7 +257,39 @@ function addRecord() {
     alert('记录添加成功！');
 }
 
-// 导出数据为CSV
+function deleteSelectedRecords() {
+    const checkboxes = document.querySelectorAll('.record-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert('请选择要删除的记录');
+        return;
+    }
+    
+    if (!confirm(`确定要删除选中的 ${checkboxes.length} 条记录吗？`)) {
+        return;
+    }
+    
+    const idsToDelete = Array.from(checkboxes).map(cb => cb.dataset.id);
+    records = records.filter(record => !idsToDelete.includes(record.id));
+    filteredRecords = [...records];
+    
+    saveRecords();
+    updateDashboard();
+    updateRecordTable();
+    
+    alert('删除成功！');
+}
+
+function selectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const recordCheckboxes = document.querySelectorAll('.record-checkbox');
+    
+    recordCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+}
+
+// ===== 导出功能 =====
+
 function exportToCSV() {
     if (!Array.isArray(records) || records.length === 0) {
         alert('没有数据可导出');
@@ -255,7 +324,6 @@ function exportToCSV() {
     alert('数据导出成功！');
 }
 
-// 导出数据为JSON
 function exportToJSON() {
     if (!Array.isArray(records) || records.length === 0) {
         alert('没有数据可导出');
@@ -279,9 +347,33 @@ function exportToJSON() {
     alert('数据导出成功！');
 }
 
-// ===== 显示更新函数 =====
+// ===== 分页功能 =====
 
-// 更新仪表板
+function previousPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        updateRecordTable();
+    }
+}
+
+function nextPage() {
+    const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        updateRecordTable();
+    }
+}
+
+function goToPage(page) {
+    const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+    if (page >= 1 && page <= totalPages) {
+        currentPage = page;
+        updateRecordTable();
+    }
+}
+
+// ===== 显示更新功能 =====
+
 function updateDashboard() {
     if (!Array.isArray(records)) {
         console.error('records不是数组:', records);
@@ -302,7 +394,6 @@ function updateDashboard() {
     console.log('仪表板更新完成');
 }
 
-// 更新元素文本
 function updateElementText(id, text) {
     const element = document.getElementById(id);
     if (element) {
@@ -312,38 +403,7 @@ function updateElementText(id, text) {
     }
 }
 
-// 筛选记录
-function filterRecords() {
-    if (!Array.isArray(records)) {
-        console.error('records不是数组，无法筛选');
-        return;
-    }
-    
-    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const categoryFilter = document.getElementById('categoryFilter')?.value || '';
-    const typeFilter = document.getElementById('typeFilter')?.value || '';
-    const startDate = document.getElementById('startDate')?.value || '';
-    const endDate = document.getElementById('endDate')?.value || '';
-    
-    let filteredRecords = records.filter(record => {
-        const matchesSearch = !searchTerm || 
-            (record.description && record.description.toLowerCase().includes(searchTerm)) ||
-            (record.category && record.category.toLowerCase().includes(searchTerm));
-        
-        const matchesCategory = !categoryFilter || record.category === categoryFilter;
-        const matchesType = !typeFilter || record.type === typeFilter;
-        
-        const matchesDateRange = (!startDate || record.date >= startDate) &&
-                                (!endDate || record.date <= endDate);
-        
-        return matchesSearch && matchesCategory && matchesType && matchesDateRange;
-    });
-    
-    updateRecordTable(filteredRecords);
-}
-
-// 更新记录表格
-function updateRecordTable(filteredRecords = null) {
+function updateRecordTable() {
     const recordsToShow = filteredRecords || records;
     
     if (!Array.isArray(recordsToShow)) {
@@ -382,10 +442,54 @@ function updateRecordTable(filteredRecords = null) {
         tbody.appendChild(row);
     });
     
+    // 更新分页信息
+    updatePagination();
+    
     console.log('记录表格更新完成，显示', pageRecords.length, '条记录');
 }
 
-// ===== 事件处理函数 =====
+function updatePagination() {
+    const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+    const paginationInfo = document.querySelector('.pagination-info');
+    if (paginationInfo) {
+        paginationInfo.textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
+    }
+}
+
+// ===== 事件绑定 =====
+
+function bindEventListeners() {
+    // 搜索功能
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(filterRecords, 300));
+    }
+    
+    // 筛选功能
+    const categoryFilter = document.getElementById('categoryFilter');
+    const typeFilter = document.getElementById('typeFilter');
+    const startDate = document.getElementById('startDate');
+    const endDate = document.getElementById('endDate');
+    
+    if (categoryFilter) categoryFilter.addEventListener('change', filterRecords);
+    if (typeFilter) typeFilter.addEventListener('change', filterRecords);
+    if (startDate) startDate.addEventListener('change', filterRecords);
+    if (endDate) endDate.addEventListener('change', filterRecords);
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// ===== 模态框控制 =====
 
 // 点击模态框外部关闭
 window.onclick = function(event) {
