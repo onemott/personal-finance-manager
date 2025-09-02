@@ -1,4 +1,4 @@
-// SCCIPC智能车实验室财务管理系统 - 最终完整版本
+// SCCIPC智能车实验室财务管理系统 - 用户体验优化版本
 console.log('Script开始加载...');
 
 // 全局变量
@@ -111,7 +111,6 @@ function showDataManagement() {
         updateStorageInfo();
     } else {
         console.error('未找到dataManagementModal');
-        alert('数据管理界面未找到');
     }
 }
 
@@ -145,7 +144,6 @@ function showAddRecordModal() {
         updateCategoryOptions();
     } else {
         console.error('未找到editModal');
-        alert('新增记录界面未找到');
     }
 }
 
@@ -255,15 +253,26 @@ function selectAll() {
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const recordCheckboxes = document.querySelectorAll('.record-checkbox');
     
-    recordCheckboxes.forEach(checkbox => {
-        checkbox.checked = selectAllCheckbox.checked;
-    });
-    
-    updateBatchDeleteButton();
+    if (selectAllCheckbox && recordCheckboxes.length > 0) {
+        recordCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+        updateBatchDeleteButton();
+        console.log('全选状态:', selectAllCheckbox.checked);
+    }
 }
 
 function toggleSelectAll() {
-    selectAll();
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const recordCheckboxes = document.querySelectorAll('.record-checkbox');
+    
+    if (selectAllCheckbox && recordCheckboxes.length > 0) {
+        recordCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+        updateBatchDeleteButton();
+        console.log('切换全选状态:', selectAllCheckbox.checked);
+    }
 }
 
 function updateSelectableTable() {
@@ -277,15 +286,15 @@ function updateBatchDeleteButton() {
     
     if (batchDeleteBtn) {
         batchDeleteBtn.disabled = checkedBoxes.length === 0;
-        batchDeleteBtn.textContent = checkedBoxes.length > 0 ? 
-            `批量删除 (${checkedBoxes.length})` : '批量删除';
+        batchDeleteBtn.innerHTML = checkedBoxes.length > 0 ? 
+            `<i class="fas fa-trash"></i> 批量删除 (${checkedBoxes.length})` : 
+            '<i class="fas fa-trash"></i> 批量删除';
     }
 }
 
 function batchDelete() {
     const checkboxes = document.querySelectorAll('.record-checkbox:checked');
     if (checkboxes.length === 0) {
-        alert('请选择要删除的记录');
         return;
     }
     
@@ -301,7 +310,7 @@ function batchDelete() {
     updateDashboard();
     updateRecordTable();
     
-    alert('删除成功！');
+    console.log(`批量删除成功，删除了 ${checkboxes.length} 条记录`);
 }
 
 // ===== 排序功能 =====
@@ -389,15 +398,18 @@ function viewRecord(id) {
     const modal = document.getElementById('recordModal');
     if (modal) {
         // 填充记录详情
-        document.getElementById('recordDetails').innerHTML = `
-            <p><strong>日期:</strong> ${record.date}</p>
-            <p><strong>类型:</strong> ${record.type === 'income' ? '收入' : record.type === 'expense' ? '支出' : '订单'}</p>
-            <p><strong>分类:</strong> ${record.category}</p>
-            <p><strong>描述:</strong> ${record.description}</p>
-            <p><strong>金额:</strong> ¥${record.amount.toFixed(2)}</p>
-            <p><strong>备注:</strong> ${record.notes || '无'}</p>
-            <p><strong>创建时间:</strong> ${new Date(record.createTime).toLocaleString()}</p>
-        `;
+        const recordDetails = document.getElementById('recordDetails');
+        if (recordDetails) {
+            recordDetails.innerHTML = `
+                <p><strong>日期:</strong> ${record.date}</p>
+                <p><strong>类型:</strong> ${record.type === 'income' ? '收入' : record.type === 'expense' ? '支出' : '订单'}</p>
+                <p><strong>分类:</strong> ${record.category}</p>
+                <p><strong>描述:</strong> ${record.description}</p>
+                <p><strong>金额:</strong> ¥${record.amount.toFixed(2)}</p>
+                <p><strong>备注:</strong> ${record.notes || '无'}</p>
+                <p><strong>创建时间:</strong> ${new Date(record.createTime).toLocaleString()}</p>
+            `;
+        }
         modal.style.display = 'block';
         currentEditId = id;
     }
@@ -407,25 +419,7 @@ function editRecord() {
     if (!currentEditId) return;
     
     closeModal();
-    
-    const record = records.find(r => r.id === currentEditId);
-    if (!record) return;
-    
-    const modal = document.getElementById('editModal');
-    if (modal) {
-        modal.style.display = 'block';
-        document.getElementById('editModalTitle').textContent = '编辑记录';
-        
-        // 填充表单
-        document.getElementById('editType').value = record.type;
-        document.getElementById('editCategory').value = record.category;
-        document.getElementById('editDescription').value = record.description;
-        document.getElementById('editAmount').value = record.amount;
-        document.getElementById('editDate').value = record.date;
-        document.getElementById('editNotes').value = record.notes || '';
-        
-        updateCategoryOptions();
-    }
+    editRecordById(currentEditId);
 }
 
 function editRecordById(id) {
@@ -460,7 +454,7 @@ function deleteRecord(id) {
     updateDashboard();
     updateRecordTable();
     
-    alert('删除成功！');
+    console.log('记录删除成功');
 }
 
 function closeModal() {
@@ -558,9 +552,9 @@ function saveRecord() {
     // 关闭模态框
     closeEditModal();
     
-    // 显示成功消息
+    // 静默成功（移除弹窗）
     const message = currentEditId ? '记录更新成功！' : '记录添加成功！';
-    alert(message);
+    console.log(message);
     
     // 强制刷新表格显示
     setTimeout(() => {
@@ -586,7 +580,7 @@ function handleFileImport(event) {
                     saveRecords();
                     updateDashboard();
                     updateRecordTable();
-                    alert('数据导入成功！');
+                    console.log('数据导入成功！');
                 }
             } else {
                 alert('文件格式不正确');
@@ -637,7 +631,7 @@ function handleAlipayImport(event) {
                     saveRecords();
                     updateDashboard();
                     updateRecordTable();
-                    alert('支付宝数据导入成功！');
+                    console.log('支付宝数据导入成功！');
                 }
             } else {
                 alert('未能解析到有效数据');
@@ -685,7 +679,7 @@ function handleWechatImport(event) {
                     saveRecords();
                     updateDashboard();
                     updateRecordTable();
-                    alert('微信数据导入成功！');
+                    console.log('微信数据导入成功！');
                 }
             } else {
                 alert('未能解析到有效数据');
@@ -699,7 +693,7 @@ function handleWechatImport(event) {
 
 function exportToCSV() {
     if (!Array.isArray(records) || records.length === 0) {
-        alert('没有数据可导出');
+        console.log('没有数据可导出');
         return;
     }
     
@@ -726,12 +720,12 @@ function exportToCSV() {
     link.click();
     document.body.removeChild(link);
     
-    alert('CSV数据导出成功！');
+    console.log('CSV数据导出成功！');
 }
 
 function exportToJSON() {
     if (!Array.isArray(records) || records.length === 0) {
-        alert('没有数据可导出');
+        console.log('没有数据可导出');
         return;
     }
     
@@ -746,7 +740,7 @@ function exportToJSON() {
     link.click();
     document.body.removeChild(link);
     
-    alert('JSON数据导出成功！');
+    console.log('JSON数据导出成功！');
 }
 
 // ===== 数据操作功能 =====
@@ -761,7 +755,7 @@ function generateSampleData() {
     updateDashboard();
     updateRecordTable();
     
-    alert('示例数据生成成功！');
+    console.log('示例数据生成成功！');
 }
 
 function clearAllData() {
@@ -776,7 +770,7 @@ function clearAllData() {
     updateRecordTable();
     updateStorageInfo();
     
-    alert('所有数据已清空！');
+    console.log('所有数据已清空！');
 }
 
 // ===== 显示更新功能 =====
@@ -831,16 +825,15 @@ function updateRecordTable() {
     }
     
     // 尝试多种方式找到表格tbody
-    let tbody = document.querySelector('#recordTable tbody');
+    let tbody = document.querySelector('#recordsTableBody');
+    if (!tbody) {
+        tbody = document.querySelector('#recordsTable tbody');
+    }
     if (!tbody) {
         tbody = document.querySelector('table tbody');
     }
     if (!tbody) {
-        tbody = document.querySelector('.records-table tbody');
-    }
-    if (!tbody) {
-        console.warn('未找到记录表格tbody，尝试创建表格');
-        createRecordTable();
+        console.warn('未找到记录表格tbody');
         return;
     }
     
@@ -993,40 +986,5 @@ document.addEventListener('keydown', function(event) {
         });
     }
 });
-
-// 创建记录表格（如果不存在）
-function createRecordTable() {
-    const container = document.querySelector('.records-container') || document.querySelector('.main-content');
-    if (!container) {
-        console.error('未找到容器来创建表格');
-        return;
-    }
-    
-    const tableHTML = `
-        <div class="table-container">
-            <table id="recordTable" class="records-table">
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()"></th>
-                        <th onclick="sortTable('date')">日期 <i class="fas fa-sort"></i></th>
-                        <th onclick="sortTable('type')">类型 <i class="fas fa-sort"></i></th>
-                        <th onclick="sortTable('category')">分类 <i class="fas fa-sort"></i></th>
-                        <th onclick="sortTable('description')">描述 <i class="fas fa-sort"></i></th>
-                        <th onclick="sortTable('amount')">金额 <i class="fas fa-sort"></i></th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
-        </div>
-    `;
-    
-    container.innerHTML += tableHTML;
-    console.log('已创建记录表格');
-    
-    // 重新尝试更新表格
-    setTimeout(() => updateRecordTable(), 100);
-}
 
 console.log('Script加载完成，所有函数已定义');
