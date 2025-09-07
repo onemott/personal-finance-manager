@@ -78,41 +78,30 @@ document.addEventListener('DOMContentLoaded', function() {
 // 应用初始化
 async function initializeApp() {
     try {
+        console.log('🚀 开始初始化应用...');
         AppState.setLoading(true);
         
-        // 显示启动画面
-        showSplashScreen();
-        
         // 初始化各个模块
-        await PerformanceMonitor.measureFunction(() => {
-            loadRecords();
-            return Promise.resolve();
-        }, '数据加载');
+        console.log('📊 加载数据...');
+        loadRecords();
         
-        PerformanceMonitor.measureFunction(() => {
-            updateDashboard();
-        }, '仪表板更新');
+        console.log('📈 更新仪表板...');
+        updateDashboard();
         
-        PerformanceMonitor.measureFunction(() => {
-            updateRecordTable();
-        }, '表格渲染');
+        console.log('📋 更新记录表格...');
+        updateRecordTable();
         
-        PerformanceMonitor.measureFunction(() => {
-            bindEventListeners();
-        }, '事件绑定');
+        console.log('🔗 绑定事件监听器...');
+        bindEventListeners();
         
         // 初始化PWA功能
+        console.log('📱 初始化PWA功能...');
         initializePWA();
         
         // 检查URL参数
         handleURLParams();
         
-        // 隐藏启动画面
-        hideSplashScreen();
-        
         AppState.setLoading(false);
-        PerformanceMonitor.mark('应用初始化完成');
-        
         console.log('✅ 应用初始化成功');
         
         // 显示欢迎提示（仅首次访问）
