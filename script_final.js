@@ -12,6 +12,13 @@ const APP_CONFIG = {
     animationDuration: 300 // 动画持续时间
 };
 
+// 兼容性变量（为了向后兼容）
+let records = [];
+let filteredRecords = [];
+let currentPage = 1;
+let currentEditId = null;
+const recordsPerPage = 10;
+
 // 全局状态管理
 const AppState = {
     records: [],
@@ -154,91 +161,18 @@ function handleURLParams() {
     }
 }
 
-// 显示启动画面
+// 显示启动画面（简化版本）
 function showSplashScreen() {
-    const splash = document.createElement('div');
-    splash.id = 'splash-screen';
-    splash.innerHTML = `
-        <div class="splash-content">
-            <div class="splash-logo">
-                <i class="fa-solid fa-car"></i>
-            </div>
-            <h2>SCCIPC财务管理</h2>
-            <div class="splash-loading">
-                <div class="loading-spinner"></div>
-                <p>正在加载...</p>
-            </div>
-        </div>
-    `;
-    
-    // 添加样式
-    const style = document.createElement('style');
-    style.textContent = `
-        #splash-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            color: white;
-        }
-        .splash-content {
-            text-align: center;
-            animation: fadeInUp 0.6s ease;
-        }
-        .splash-logo {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            color: #ffd700;
-        }
-        .splash-content h2 {
-            font-size: 1.5rem;
-            margin-bottom: 2rem;
-            font-weight: 300;
-        }
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-top: 3px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-    `;
-    
-    document.head.appendChild(style);
-    document.body.appendChild(splash);
+    console.log('🎬 启动画面已禁用，直接进入应用');
+    // 不再显示启动画面，直接返回
+    return;
 }
 
-// 隐藏启动画面
+// 隐藏启动画面（简化版本）
 function hideSplashScreen() {
-    const splash = document.getElementById('splash-screen');
-    if (splash) {
-        splash.style.animation = 'fadeOut 0.3s ease forwards';
-        setTimeout(() => {
-            splash.remove();
-        }, 300);
-    }
+    console.log('🎬 启动画面隐藏完成');
+    // 不需要隐藏，因为没有显示
+    return;
 }
 
 // 显示欢迎消息
