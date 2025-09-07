@@ -120,6 +120,9 @@
                 <button class="tab-btn" onclick="switchTab('orders')" data-tab="orders">
                     <i class="fa-solid fa-cart-shopping"></i> 购物订单
                 </button>
+                <button class="tab-btn" onclick="switchTab('merchant-groups')" data-tab="merchant-groups">
+                    <i class="fa-solid fa-store"></i> 按商家分组
+                </button>
             </div>
             
             <div class="search-box">
@@ -211,6 +214,22 @@
                 </button>
             </div>
         </div>
+
+        <!-- 商家分组显示区域 -->
+        <div class="merchant-groups-section" id="merchantGroupsSection" style="display: none;">
+            <div class="groups-header">
+                <h2>按商家分组统计</h2>
+                <div class="groups-summary">
+                    <span id="totalMerchants">共 0 个商家</span>
+                    <span id="totalGroupedOrders">0 个订单</span>
+                    <span id="totalGroupedAmount">总计 ¥0.00</span>
+                </div>
+            </div>
+            
+            <div class="merchant-groups-container" id="merchantGroupsContainer">
+                <!-- 商家分组内容将通过JavaScript动态生成 -->
+            </div>
+        </div>
     </div>
 
     <!-- 记录详情模态框 -->
@@ -258,7 +277,12 @@
                     
                     <div class="form-group">
                         <label>描述:</label>
-                        <input type="text" id="editDescription" required placeholder="请输入描述信息">
+                        <div class="autocomplete-container">
+                            <input type="text" id="editDescription" required placeholder="请输入描述信息" 
+                                   autocomplete="off" oninput="showDescriptionSuggestions(this.value)" 
+                                   onblur="hideDescriptionSuggestions()" onfocus="showDescriptionSuggestions(this.value)">
+                            <div class="autocomplete-suggestions" id="descriptionSuggestions"></div>
+                        </div>
                     </div>
                     
                     <div class="form-row">

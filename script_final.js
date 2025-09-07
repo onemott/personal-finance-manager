@@ -103,6 +103,10 @@ async function initializeApp() {
         console.log('🔗 绑定事件监听器...');
         bindEventListeners();
         
+        // 初始化描述输入历史功能
+        console.log('📝 初始化描述输入历史...');
+        initDescriptionHistory();
+        
         // 初始化PWA功能
         console.log('📱 初始化PWA功能...');
         initializePWA();
@@ -652,19 +656,33 @@ function switchTab(tabType) {
         }
     });
     
-    // 根据标签页类型筛选数据
-    if (tabType === 'all') {
-        filteredRecords = [...records];
-    } else if (tabType === 'income') {
-        filteredRecords = records.filter(r => r.type === 'income');
-    } else if (tabType === 'expense') {
-        filteredRecords = records.filter(r => r.type === 'expense');
-    } else if (tabType === 'orders') {
-        filteredRecords = records.filter(r => r.type === 'order' || (r.category && r.category.includes('订单')));
-    }
+    // 根据标签页类型筛选数据和显示相应界面
+    const tableSection = document.querySelector('.table-section');
+    const merchantGroupsSection = document.getElementById('merchantGroupsSection');
     
-    currentPage = 1;
-    updateRecordTable();
+    if (tabType === 'merchant-groups') {
+        // 显示商家分组界面
+        tableSection.style.display = 'none';
+        merchantGroupsSection.style.display = 'block';
+        updateMerchantGroups();
+    } else {
+        // 显示普通表格界面
+        tableSection.style.display = 'block';
+        merchantGroupsSection.style.display = 'none';
+        
+        if (tabType === 'all') {
+            filteredRecords = [...records];
+        } else if (tabType === 'income') {
+            filteredRecords = records.filter(r => r.type === 'income');
+        } else if (tabType === 'expense') {
+            filteredRecords = records.filter(r => r.type === 'expense');
+        } else if (tabType === 'orders') {
+            filteredRecords = records.filter(r => r.type === 'order' || (r.category && r.category.includes('订单')));
+        }
+        
+        currentPage = 1;
+        updateRecordTable();
+    }
 }
 
 // ===== 筛选和搜索功能 =====
@@ -1302,6 +1320,9 @@ function saveRecord() {
         records.push(recordData);
         console.log('新增记录:', recordData);
         console.log('当前记录总数:', records.length);
+        
+        // 添加到描述历史记录
+        addRecordToHistory(recordData);
     }
     
     // 确保filteredRecords包含新记录
@@ -1722,5 +1743,405 @@ document.addEventListener('keydown', function(event) {
         });
     }
 });
+
+// ===== 商家分组功能 =====
+
+function updateMerchantGroups() {
+    console.log('更新商家分组显示');
+    
+    // 获取所有订单类型的记录
+    const orderRecords = records.filter(r => r.type === 'order' || (r.category && r.category.includes('订单')));
+    
+    if (orderRecords.length === 0) {
+        showEmptyMerchants();
+        return;
+    }
+    
+    // 按商家分组
+    const merchantGroups = groupByMerchant(orderRecords);
+    
+    // 更新统计信息
+    updateGroupsSummary(merchantGroups);
+    
+    // 渲染商家分组
+    renderMerchantGroups(merchantGroups);
+}
+
+function groupByMerchant(orderRecords) {
+    const groups = {};
+    
+    orderRecords.forEach(record => {
+        // 从描述中提取商家名称，或使用分类作为商家名称
+        let merchantName = extractMerchantName(record);
+        
+        if (!groups[merchantName]) {
+            groups[merchantName] = {
+                name: merchantName,
+                orders: [],
+                totalAmount: 0,
+                count: 0
+            };
+        }
+        
+        groups[merchantName].orders.push(record);
+        groups[merchantName].totalAmount += parseFloat(record.amount) || 0;
+        groups[merchantName].count++;
+    });
+    
+    // 按总金额降序排序
+    return Object.values(groups).sort((a, b) => b.totalAmount - a.totalAmount);
+}
+
+function extractMerchantName(record) {
+    // 尝试从描述中提取商家名称
+    const description = record.description || '';
+    const category = record.category || '';
+    
+    // 常见的商家关键词
+    const merchantKeywords = ['淘宝', '京东', '天猫', '拼多多', '苏宁', '唯品会', '亚马逊', '当当', '网易严选'];
+    
+    // 检查描述中是否包含商家关键词
+    for (const keyword of merchantKeywords) {
+        if (description.includes(keyword) || category.includes(keyword)) {
+            return keyword;
+        }
+    }
+    
+    // 尝试提取描述中的第一个词作为商家名称
+    const words = description.split(/[\s\-\|\/]/);
+    if (words.length > 0 && words[0].length > 0) {
+        return words[0];
+    }
+    
+    // 如果无法提取，使用分类或默认名称
+    return category || '未知商家';
+}
+
+function updateGroupsSummary(merchantGroups) {
+    const totalMerchants = merchantGroups.length;
+    const totalOrders = merchantGroups.reduce((sum, group) => sum + group.count, 0);
+    const totalAmount = merchantGroups.reduce((sum, group) => sum + group.totalAmount, 0);
+    
+    document.getElementById('totalMerchants').textContent = `共 ${totalMerchants} 个商家`;
+    document.getElementById('totalGroupedOrders').textContent = `${totalOrders} 个订单`;
+    document.getElementById('totalGroupedAmount').textContent = `总计 ¥${totalAmount.toFixed(2)}`;
+}
+
+function renderMerchantGroups(merchantGroups) {
+    const container = document.getElementById('merchantGroupsContainer');
+    
+    if (merchantGroups.length === 0) {
+        showEmptyMerchants();
+        return;
+    }
+    
+    container.innerHTML = merchantGroups.map((group, index) => `
+        <div class="merchant-group">
+            <div class="merchant-header">
+                <div class="merchant-info">
+                    <h3><i class="fa-solid fa-store"></i> ${group.name}</h3>
+                    <p>订单详情</p>
+                </div>
+                <div class="merchant-stats">
+                    <div class="amount">¥${group.totalAmount.toFixed(2)}</div>
+                    <div class="count">${group.count} 个订单</div>
+                </div>
+                <button class="merchant-toggle" onclick="toggleMerchantOrders(${index})">
+                    <i class="fa-solid fa-chevron-down" id="toggle-icon-${index}"></i>
+                </button>
+            </div>
+            <div class="merchant-orders" id="merchant-orders-${index}">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>描述</th>
+                            <th>金额</th>
+                            <th>发票状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${group.orders.map(order => `
+                            <tr>
+                                <td class="date">${order.date || ''}</td>
+                                <td class="description">${order.description || ''}</td>
+                                <td class="amount">¥${(parseFloat(order.amount) || 0).toFixed(2)}</td>
+                                <td>
+                                    <span class="status-badge ${order.invoiceStatus || 'none'}">
+                                        ${getInvoiceStatusText(order.invoiceStatus)}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline" onclick="viewRecord('${order.id}')" title="查看详情">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-primary" onclick="editRecordById('${order.id}')" title="编辑">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `).join('');
+}
+
+function getInvoiceStatusText(status) {
+    switch (status) {
+        case 'none': return '无需发票';
+        case 'available': return '可开发票';
+        case 'issued': return '已开发票';
+        case 'reimbursed': return '已报销';
+        default: return '无需发票';
+    }
+}
+
+function toggleMerchantOrders(index) {
+    const ordersDiv = document.getElementById(`merchant-orders-${index}`);
+    const toggleIcon = document.getElementById(`toggle-icon-${index}`);
+    
+    if (ordersDiv.classList.contains('collapsed')) {
+        ordersDiv.classList.remove('collapsed');
+        toggleIcon.className = 'fa-solid fa-chevron-down';
+    } else {
+        ordersDiv.classList.add('collapsed');
+        toggleIcon.className = 'fa-solid fa-chevron-right';
+    }
+}
+
+function showEmptyMerchants() {
+    const container = document.getElementById('merchantGroupsContainer');
+    container.innerHTML = `
+        <div class="empty-merchants">
+            <i class="fa-solid fa-store-slash"></i>
+            <h3>暂无订单记录</h3>
+            <p>还没有任何订单记录，请先添加一些订单类型的记录。<br>
+            系统会自动按商家对订单进行分组统计。</p>
+        </div>
+    `;
+    
+    // 重置统计信息
+    document.getElementById('totalMerchants').textContent = '共 0 个商家';
+    document.getElementById('totalGroupedOrders').textContent = '0 个订单';
+    document.getElementById('totalGroupedAmount').textContent = '总计 ¥0.00';
+}
+
+// ===== 描述输入历史功能 =====
+
+let descriptionHistory = [];
+let currentSuggestionIndex = -1;
+
+// 加载描述历史记录
+function loadDescriptionHistory() {
+    try {
+        const saved = localStorage.getItem('sccipc_description_history');
+        if (saved) {
+            descriptionHistory = JSON.parse(saved);
+        }
+    } catch (e) {
+        console.warn('加载描述历史失败:', e);
+        descriptionHistory = [];
+    }
+}
+
+// 保存描述历史记录
+function saveDescriptionHistory() {
+    try {
+        // 只保留最近的50条记录
+        const limitedHistory = descriptionHistory.slice(0, 50);
+        localStorage.setItem('sccipc_description_history', JSON.stringify(limitedHistory));
+    } catch (e) {
+        console.warn('保存描述历史失败:', e);
+    }
+}
+
+// 添加描述到历史记录
+function addToDescriptionHistory(description) {
+    if (!description || description.trim().length < 2) return;
+    
+    const trimmedDesc = description.trim();
+    
+    // 移除已存在的相同描述
+    descriptionHistory = descriptionHistory.filter(item => item.text !== trimmedDesc);
+    
+    // 添加到开头
+    descriptionHistory.unshift({
+        text: trimmedDesc,
+        count: 1,
+        lastUsed: new Date().toISOString()
+    });
+    
+    // 更新使用次数
+    const existing = descriptionHistory.find(item => item.text === trimmedDesc);
+    if (existing && existing !== descriptionHistory[0]) {
+        existing.count++;
+        existing.lastUsed = new Date().toISOString();
+    }
+    
+    saveDescriptionHistory();
+}
+
+// 显示描述建议
+function showDescriptionSuggestions(inputValue) {
+    const suggestionsDiv = document.getElementById('descriptionSuggestions');
+    if (!suggestionsDiv) return;
+    
+    const value = inputValue.toLowerCase().trim();
+    
+    if (value.length === 0) {
+        // 显示最近使用的描述
+        const recentSuggestions = descriptionHistory.slice(0, 8);
+        renderSuggestions(recentSuggestions, '最近使用');
+        return;
+    }
+    
+    // 过滤匹配的建议
+    const filteredSuggestions = descriptionHistory.filter(item => 
+        item.text.toLowerCase().includes(value)
+    ).slice(0, 8);
+    
+    if (filteredSuggestions.length > 0) {
+        renderSuggestions(filteredSuggestions, '匹配建议');
+    } else {
+        suggestionsDiv.innerHTML = '<div class="no-suggestions">暂无匹配的历史记录</div>';
+        suggestionsDiv.classList.add('show');
+    }
+}
+
+// 渲染建议列表
+function renderSuggestions(suggestions, title) {
+    const suggestionsDiv = document.getElementById('descriptionSuggestions');
+    if (!suggestionsDiv) return;
+    
+    if (suggestions.length === 0) {
+        suggestionsDiv.classList.remove('show');
+        return;
+    }
+    
+    suggestionsDiv.innerHTML = suggestions.map((item, index) => `
+        <div class="suggestion-item" onclick="selectSuggestion('${item.text.replace(/'/g, "\\'")}', event)" 
+             onmouseenter="highlightSuggestion(${index})" data-index="${index}">
+            <span class="suggestion-text">
+                <i class="fa-solid fa-history"></i>
+                ${item.text}
+            </span>
+            <span class="suggestion-count">${item.count}次</span>
+        </div>
+    `).join('');
+    
+    suggestionsDiv.classList.add('show');
+    currentSuggestionIndex = -1;
+}
+
+// 选择建议
+function selectSuggestion(text, event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    const input = document.getElementById('editDescription');
+    if (input) {
+        input.value = text;
+        input.focus();
+    }
+    
+    hideDescriptionSuggestions();
+}
+
+// 隐藏建议列表
+function hideDescriptionSuggestions() {
+    setTimeout(() => {
+        const suggestionsDiv = document.getElementById('descriptionSuggestions');
+        if (suggestionsDiv) {
+            suggestionsDiv.classList.remove('show');
+        }
+        currentSuggestionIndex = -1;
+    }, 150);
+}
+
+// 高亮建议项
+function highlightSuggestion(index) {
+    const suggestions = document.querySelectorAll('.suggestion-item');
+    suggestions.forEach((item, i) => {
+        if (i === index) {
+            item.classList.add('highlighted');
+            currentSuggestionIndex = index;
+        } else {
+            item.classList.remove('highlighted');
+        }
+    });
+}
+
+// 键盘导航支持
+function handleDescriptionKeydown(event) {
+    const suggestionsDiv = document.getElementById('descriptionSuggestions');
+    if (!suggestionsDiv || !suggestionsDiv.classList.contains('show')) return;
+    
+    const suggestions = document.querySelectorAll('.suggestion-item');
+    if (suggestions.length === 0) return;
+    
+    switch (event.key) {
+        case 'ArrowDown':
+            event.preventDefault();
+            currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, suggestions.length - 1);
+            highlightSuggestion(currentSuggestionIndex);
+            break;
+            
+        case 'ArrowUp':
+            event.preventDefault();
+            currentSuggestionIndex = Math.max(currentSuggestionIndex - 1, -1);
+            if (currentSuggestionIndex >= 0) {
+                highlightSuggestion(currentSuggestionIndex);
+            } else {
+                suggestions.forEach(item => item.classList.remove('highlighted'));
+            }
+            break;
+            
+        case 'Enter':
+            if (currentSuggestionIndex >= 0) {
+                event.preventDefault();
+                const selectedText = suggestions[currentSuggestionIndex].querySelector('.suggestion-text').textContent.trim();
+                selectSuggestion(selectedText.replace('', ''));
+            }
+            break;
+            
+        case 'Escape':
+            hideDescriptionSuggestions();
+            break;
+    }
+}
+
+// 初始化描述输入历史功能
+function initDescriptionHistory() {
+    loadDescriptionHistory();
+    
+    const input = document.getElementById('editDescription');
+    if (input) {
+        input.addEventListener('keydown', handleDescriptionKeydown);
+        
+        // 添加焦点事件，显示最近使用的建议
+        input.addEventListener('focus', function() {
+            if (this.value.trim() === '') {
+                showDescriptionSuggestions('');
+            }
+        });
+        
+        // 添加失焦事件，隐藏建议列表
+        input.addEventListener('blur', function() {
+            hideDescriptionSuggestions();
+        });
+    }
+}
+
+// 在保存记录时添加到历史
+function addRecordToHistory(recordData) {
+    if (recordData.description) {
+        addToDescriptionHistory(recordData.description);
+    }
+}
 
 console.log('Script加载完成，所有函数已定义');

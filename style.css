@@ -1380,3 +1380,283 @@ table tbody tr:nth-child(even) {
     color: #fff;
   }
 }
+
+/* ========== 商家分组样式 ========== */
+.merchant-groups-section {
+    margin-top: 30px;
+}
+
+.groups-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.groups-header h2 {
+    color: #2d3436;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.groups-summary {
+    display: flex;
+    gap: 20px;
+    font-size: 0.95rem;
+}
+
+.groups-summary span {
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border-radius: 20px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.merchant-groups-container {
+    display: grid;
+    gap: 20px;
+}
+
+.merchant-group {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.merchant-group:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.merchant-header {
+    background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.merchant-info h3 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.merchant-info p {
+    opacity: 0.9;
+    font-size: 0.9rem;
+}
+
+.merchant-stats {
+    text-align: right;
+}
+
+.merchant-stats .amount {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.merchant-stats .count {
+    opacity: 0.9;
+    font-size: 0.9rem;
+}
+
+.merchant-orders {
+    padding: 0;
+}
+
+.merchant-orders table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.merchant-orders th {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.merchant-orders td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.merchant-orders tr:hover {
+    background: #f8f9fa;
+}
+
+.merchant-orders .amount {
+    font-weight: 600;
+    color: #e17055;
+}
+
+.merchant-orders .date {
+    color: #636e72;
+    font-size: 0.9rem;
+}
+
+.merchant-orders .description {
+    color: #2d3436;
+}
+
+.merchant-toggle {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.merchant-toggle:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.merchant-orders.collapsed {
+    display: none;
+}
+
+/* 空状态样式 */
+.empty-merchants {
+    text-align: center;
+    padding: 60px 20px;
+    color: #636e72;
+}
+
+.empty-merchants i {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-merchants h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: #2d3436;
+}
+
+.empty-merchants p {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .groups-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .groups-summary {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .merchant-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .merchant-orders th,
+    .merchant-orders td {
+        padding: 8px 10px;
+        font-size: 0.9rem;
+    }
+}
+
+/* ========== 自动完成输入框样式 ========== */
+.autocomplete-container {
+    position: relative;
+    width: 100%;
+}
+
+.autocomplete-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.autocomplete-suggestions.show {
+    display: block;
+}
+
+.suggestion-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f3f4;
+    transition: background-color 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.suggestion-item:hover,
+.suggestion-item.highlighted {
+    background-color: #f8f9fa;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-text {
+    flex: 1;
+    color: #2d3436;
+    font-size: 0.95rem;
+}
+
+.suggestion-count {
+    color: #636e72;
+    font-size: 0.8rem;
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 10px;
+}
+
+.suggestion-item .fa-history {
+    color: #74b9ff;
+    margin-right: 8px;
+}
+
+.no-suggestions {
+    padding: 15px;
+    text-align: center;
+    color: #636e72;
+    font-style: italic;
+}
+
+/* 输入框聚焦时的样式调整 */
+.autocomplete-container input:focus {
+    border-radius: 8px 8px 0 0;
+}
+
+.autocomplete-container input:focus + .autocomplete-suggestions {
+    border-color: #74b9ff;
+}
