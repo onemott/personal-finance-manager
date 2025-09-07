@@ -18,6 +18,7 @@ let filteredRecords = [];
 let currentPage = 1;
 let currentEditId = null;
 const recordsPerPage = 10;
+let selectedIds = new Set();
 
 // 全局状态管理
 const AppState = {
