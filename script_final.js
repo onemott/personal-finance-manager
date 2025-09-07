@@ -307,10 +307,16 @@ function loadRecords() {
             const parsed = JSON.parse(savedRecords);
             const validRecords = ensureUniqueRecordIds(Array.isArray(parsed) ? parsed : []);
             AppState.updateRecords(validRecords);
+            // 同步到全局变量
+            records = [...AppState.records];
+            filteredRecords = [...AppState.records];
             console.log('📊 加载了', AppState.records.length, '条记录');
         } else {
             const sampleData = ensureUniqueRecordIds(createSampleData());
             AppState.updateRecords(sampleData);
+            // 同步到全局变量
+            records = [...AppState.records];
+            filteredRecords = [...AppState.records];
             saveRecords();
             console.log('🎯 创建了示例数据');
         }
@@ -338,8 +344,10 @@ function saveRecords(retryCount = 0) {
         // 同步数据：确保AppState.records和全局records一致
         if (records && records.length > 0) {
             AppState.records = [...records];
+            filteredRecords = [...records];
         } else if (AppState.records && AppState.records.length > 0) {
             records = [...AppState.records];
+            filteredRecords = [...AppState.records];
         }
         
         // 检查localStorage是否可用
