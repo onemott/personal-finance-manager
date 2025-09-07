@@ -19,6 +19,7 @@ let currentPage = 1;
 let currentEditId = null;
 const recordsPerPage = 10;
 let selectedIds = new Set();
+let isBatchDeleting = false;
 
 // 全局状态管理
 const AppState = {
@@ -359,12 +360,11 @@ function saveRecords(retryCount = 0) {
     
     try {
         // 同步数据：确保AppState.records和全局records一致
-        if (records && records.length > 0) {
+        // 优先使用records数组（包括空数组的情况，因为可能是删除操作的结果）
+        if (records !== undefined && Array.isArray(records)) {
             AppState.records = [...records];
-            filteredRecords = [...records];
         } else if (AppState.records && AppState.records.length > 0) {
             records = [...AppState.records];
-            filteredRecords = [...AppState.records];
         }
         
         // 检查localStorage是否可用
@@ -746,10 +746,16 @@ function selectAll() {
         selectAllCheckbox.checked = true;
         selectAllCheckbox.indeterminate = false;
         pageRecords.forEach(r => selectedIds.add(String(r.id)));
-        recordCheckboxes.forEach(cb => { cb.checked = true; });
+        recordCheckboxes.forEach(cb => { 
+            cb.checked = true; 
+            // 确保DOM复选框的data-id也在selectedIds中
+            if (cb.dataset && cb.dataset.id) {
+                selectedIds.add(String(cb.dataset.id));
+            }
+        });
         updateBatchDeleteButton();
         updateHeaderSelectAllState();
-        console.log('全选(当前页)完成');
+        console.log('全选(当前页)完成，当前selectedIds:', Array.from(selectedIds));
     }
 }
 
@@ -765,16 +771,30 @@ function toggleSelectAll() {
 
     if (selectAllCheckbox && recordCheckboxes.length > 0) {
         if (selectAllCheckbox.checked) {
+            // 全选：添加当前页所有记录ID到selectedIds，并勾选所有复选框
             pageRecords.forEach(r => selectedIds.add(String(r.id)));
-            recordCheckboxes.forEach(cb => { cb.checked = true; });
+            recordCheckboxes.forEach(cb => { 
+                cb.checked = true; 
+                // 确保DOM复选框的data-id也在selectedIds中
+                if (cb.dataset && cb.dataset.id) {
+                    selectedIds.add(String(cb.dataset.id));
+                }
+            });
         } else {
+            // 取消全选：从selectedIds中移除当前页所有记录ID，并取消勾选所有复选框
             pageRecords.forEach(r => selectedIds.delete(String(r.id)));
-            recordCheckboxes.forEach(cb => { cb.checked = false; });
+            recordCheckboxes.forEach(cb => { 
+                cb.checked = false; 
+                // 确保从selectedIds中移除DOM复选框的data-id
+                if (cb.dataset && cb.dataset.id) {
+                    selectedIds.delete(String(cb.dataset.id));
+                }
+            });
         }
         selectAllCheckbox.indeterminate = false;
         updateBatchDeleteButton();
         updateHeaderSelectAllState();
-        console.log('切换全选(当前页):', selectAllCheckbox.checked);
+        console.log('切换全选(当前页):', selectAllCheckbox.checked, '当前selectedIds:', Array.from(selectedIds));
     }
 }
 
@@ -821,8 +841,9 @@ function invertSelection() { console.log('反选功能已禁用'); return;
 function onRowCheckboxChange(cb) {
     const id = cb && cb.dataset ? cb.dataset.id : null;
     if (!id) return;
-    if (cb.checked) selectedIds.add(id);
-    else selectedIds.delete(id);
+    const stringId = String(id); // 确保ID统一为字符串类型
+    if (cb.checked) selectedIds.add(stringId);
+    else selectedIds.delete(stringId);
     updateBatchDeleteButton();
     updateHeaderSelectAllState();
 }
@@ -886,11 +907,32 @@ function updateBatchDeleteButton() {
     const src = (filteredRecords && filteredRecords.length ? filteredRecords : records) || [];
     const pageRecords = src.slice(startIndex, endIndex);
 
-    const pageCount = pageRecords.filter(r => selectedIds.has(String(r.id))).length;
-    const totalCount = selectedIds.size;
+    // 组合：selectedIds ∪ DOM中已勾选的行
+    const domCheckedIds = new Set();
+    document.querySelectorAll('.record-checkbox:checked').forEach(cb => {
+        if (cb && cb.dataset && cb.dataset.id) domCheckedIds.add(String(cb.dataset.id));
+    });
+    const union = new Set([...selectedIds, ...domCheckedIds]);
+
+    const pageCount = pageRecords.filter(r => union.has(String(r.id))).length;
+    const totalCount = union.size;
 
     if (batchDeleteBtn) {
-        batchDeleteBtn.disabled = totalCount === 0;
+        const shouldDisable = totalCount === 0;
+        batchDeleteBtn.disabled = shouldDisable;
+        if (shouldDisable) {
+            batchDeleteBtn.setAttribute('disabled', 'disabled');
+            batchDeleteBtn.classList.add('disabled');
+            batchDeleteBtn.setAttribute('aria-disabled', 'true');
+        } else {
+            batchDeleteBtn.removeAttribute('disabled');
+            batchDeleteBtn.classList.remove('disabled');
+            batchDeleteBtn.setAttribute('aria-disabled', 'false');
+        }
+
+        // 写入“已选ID快照”，点击时可直接读取，避免 :checked 查询偶发失效
+        try { batchDeleteBtn.dataset.selectedIds = JSON.stringify(Array.from(union)); } catch (e) {}
+
         batchDeleteBtn.innerHTML = totalCount > 0
             ? `<i class="fa-solid fa-trash"></i> 批量删除 (本页 ${pageCount} / 合计 ${totalCount})`
             : '<i class="fa-solid fa-trash"></i> 批量删除';
@@ -898,22 +940,118 @@ function updateBatchDeleteButton() {
 }
 
 function batchDelete() {
-    const count = selectedIds.size;
-    if (count === 0) return;
-    if (!confirm(`确定要删除选中的 ${count} 条记录吗？`)) return;
+    // 重入保护，避免一次点击触发两次导致“请先选择”的误判
+    if (isBatchDeleting) return;
+    isBatchDeleting = true;
+    try {
+        // 强制同步DOM复选框状态到selectedIds（解决最后一条记录删不掉的问题）
+        document.querySelectorAll('.record-checkbox:checked').forEach(cb => {
+            if (cb.dataset && cb.dataset.id) {
+                selectedIds.add(String(cb.dataset.id));
+            }
+        });
 
-    const idsToDelete = Array.from(selectedIds);
-    records = records.filter(r => !idsToDelete.includes(String(r.id)));
-    filteredRecords = filteredRecords.filter(r => !idsToDelete.includes(String(r.id)));
+        // 收集选中ID（selectedIds ∪ DOM 复选框 ∪ 按钮快照）
+        const domCheckedIds = Array.from(document.querySelectorAll('.record-checkbox:checked'))
+            .map(cb => String(cb.dataset.id))
+            .filter(Boolean);
 
-    // 清理已删除ID
-    idsToDelete.forEach(id => selectedIds.delete(id));
+        let snapIds = [];
+        const btn = document.getElementById('batchDeleteBtn');
+        try {
+            snapIds = btn && btn.dataset && btn.dataset.selectedIds ? JSON.parse(btn.dataset.selectedIds) : [];
+            if (!Array.isArray(snapIds)) snapIds = [];
+        } catch (e) { snapIds = []; }
 
-    saveRecords();
-    updateDashboard();
-    updateRecordTable();
-    updateBatchDeleteButton();
-    console.log(`批量删除成功，删除了 ${count} 条记录`);
+        const unionSet = new Set([
+            ...Array.from(selectedIds || []).map(String),
+            ...domCheckedIds,
+            ...snapIds.map(String)
+        ]);
+
+        // 添加详细的调试信息
+        console.log('批量删除调试信息:');
+        console.log('selectedIds:', Array.from(selectedIds));
+        console.log('domCheckedIds:', domCheckedIds);
+        console.log('snapIds:', snapIds);
+        console.log('unionSet:', Array.from(unionSet));
+        console.log('按钮状态:', btn ? btn.disabled : '按钮不存在');
+
+        const count = unionSet.size;
+        if (count === 0) { 
+            console.log('没有选中任何记录');
+            alert('请先选择要删除的记录'); 
+            return; 
+        }
+        const confirmResult = confirm(`确定要删除选中的 ${count} 条记录吗？`);
+        console.log('用户确认结果:', confirmResult);
+        if (!confirmResult) {
+            console.log('用户取消了删除操作');
+            return;
+        }
+        console.log('开始执行删除操作...');
+
+        const idsToDelete = Array.from(unionSet);
+        console.log('要删除的ID列表:', idsToDelete);
+        console.log('删除前records长度:', records.length);
+        console.log('删除前records内容:', records.map(r => ({id: r.id, type: typeof r.id})));
+        
+        // 执行删除操作
+        const beforeRecords = records.length;
+        records = records.filter(r => {
+            const shouldKeep = !idsToDelete.includes(String(r.id));
+            if (!shouldKeep) {
+                console.log('删除记录:', r.id, '类型:', typeof r.id);
+            }
+            return shouldKeep;
+        });
+        
+        const beforeFiltered = filteredRecords.length;
+        filteredRecords = filteredRecords.filter(r => {
+            const shouldKeep = !idsToDelete.includes(String(r.id));
+            return shouldKeep;
+        });
+        
+        console.log('删除后records长度:', records.length, '(删除了', beforeRecords - records.length, '条)');
+        console.log('删除后filteredRecords长度:', filteredRecords.length, '(删除了', beforeFiltered - filteredRecords.length, '条)');
+
+        // 清理已删除ID
+        idsToDelete.forEach(id => selectedIds.delete(id));
+
+        saveRecords();
+        
+        // 清空选择状态
+        selectedIds.clear();
+        
+        // 更新所有相关组件（不重新加载数据，避免覆盖删除结果）
+        updateDashboard();
+        filterRecords(); // 重新执行筛选以更新 filteredRecords
+        
+        // 检查并调整当前页码（防止删除后当前页为空）
+        const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+        if (currentPage > totalPages && totalPages > 0) {
+            currentPage = totalPages;
+            console.log('调整页码到:', currentPage);
+        } else if (filteredRecords.length === 0) {
+            currentPage = 1;
+            console.log('重置页码到第1页');
+        }
+        
+        updateRecordTable();
+        updateBatchDeleteButton();
+        
+        // 重置页面状态
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+        
+        console.log(`批量删除成功，删除了 ${count} 条记录`);
+        console.log('页面状态已重置，当前records长度:', records.length);
+    } finally {
+        isBatchDeleting = false;
+    }
 }
 
 // ===== 排序功能 =====
@@ -1057,14 +1195,21 @@ function editRecordById(id) {
 
 function deleteRecord(id) {
     if (!confirm('确定要删除这条记录吗？')) return;
-    
-    records = records.filter(r => r.id !== id);
-    filteredRecords = filteredRecords.filter(r => r.id !== id);
-    
+
+    // 统一为字符串比较，避免类型不一致导致删除失败
+    const targetId = String(id);
+    records = records.filter(r => String(r.id) !== targetId);
+    filteredRecords = filteredRecords.filter(r => String(r.id) !== targetId);
+
+    // 同步清理已选集合及表头全选状态
+    selectedIds.delete(targetId);
+
     saveRecords();
     updateDashboard();
     updateRecordTable();
-    
+    updateBatchDeleteButton();
+    updateHeaderSelectAllState();
+
     console.log('记录删除成功');
 }
 
@@ -1538,6 +1683,8 @@ function bindEventListeners() {
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', toggleSelectAll);
     }
+
+    // 批量删除按钮：使用 index.html 的 onclick 绑定，避免重复绑定
 }
 
 function debounce(func, wait) {
