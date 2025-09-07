@@ -334,21 +334,39 @@ function saveRecords(retryCount = 0) {
     const maxRetries = 3;
     
     try {
+        // 同步数据：确保AppState.records和全局records一致
+        if (records && records.length > 0) {
+            AppState.records = [...records];
+        } else if (AppState.records && AppState.records.length > 0) {
+            records = [...AppState.records];
+        }
+        
+        // 检查localStorage是否可用
+        if (typeof(Storage) === "undefined") {
+            console.warn('⚠️ 浏览器不支持localStorage，数据将无法持久化');
+            return;
+        }
+        
+        // 使用实际有数据的数组
+        const dataToSave = AppState.records.length > 0 ? AppState.records : records;
+        
         // 检查存储空间
-        const dataSize = JSON.stringify(AppState.records).length;
+        const dataSize = JSON.stringify(dataToSave).length;
         if (dataSize > 5 * 1024 * 1024) { // 5MB限制
             throw new Error('数据量过大，超出存储限制');
         }
         
-        localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(AppState.records));
+        localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(dataToSave));
         localStorage.setItem(APP_CONFIG.storageKey + '_lastSaved', new Date().toISOString());
         localStorage.setItem(APP_CONFIG.storageKey + '_version', APP_CONFIG.version);
         
         AppState.lastSaved = new Date().toISOString();
-        console.log('💾 保存了', AppState.records.length, '条记录');
+        console.log('💾 保存了', dataToSave.length, '条记录');
         
-        // 更新存储信息显示
-        updateStorageInfo();
+        // 更新存储信息显示（如果函数存在）
+        if (typeof updateStorageInfo === 'function') {
+            updateStorageInfo();
+        }
         
     } catch (error) {
         console.error('❌ 保存记录失败:', error);
@@ -357,7 +375,9 @@ function saveRecords(retryCount = 0) {
             console.log(`🔄 重试保存 (${retryCount + 1}/${maxRetries})`);
             setTimeout(() => saveRecords(retryCount + 1), 1000);
         } else {
-            showErrorMessage('数据保存失败，请检查存储空间或刷新页面重试');
+            console.error('💥 保存失败，已达到最大重试次数');
+            // 不再显示错误通知，只在控制台记录
+            // showErrorMessage('数据保存失败，请检查存储空间或刷新页面重试');
         }
     }
 }
