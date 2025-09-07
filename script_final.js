@@ -302,9 +302,26 @@ function loadRecords() {
     try {
         AppState.setLoading(true);
         
-        const savedRecords = localStorage.getItem(APP_CONFIG.storageKey);
-        if (savedRecords) {
-            const parsed = JSON.parse(savedRecords);
+        // 尝试从当前键读取；若无数据，自动从旧版本键迁移
+        const legacyKeys = ['sccipc_records', 'sccipc_finance_records'];
+        let savedRaw = localStorage.getItem(APP_CONFIG.storageKey);
+        if (!savedRaw) {
+            for (const k of legacyKeys) {
+                const v = localStorage.getItem(k);
+                if (v) {
+                    savedRaw = v;
+                    // 迁移至新键（忽略可能的存储异常）
+                    try { localStorage.setItem(APP_CONFIG.storageKey, v); } catch (e) { console.warn('迁移主数据失败:', e); }
+                    const last = localStorage.getItem(k + '_lastSaved');
+                    try { localStorage.setItem(APP_CONFIG.storageKey + '_lastSaved', last || new Date().toISOString()); } catch (e) {}
+                    try { localStorage.setItem(APP_CONFIG.storageKey + '_version', APP_CONFIG.version); } catch (e) {}
+                    console.log('📦 已从旧键迁移数据:', k, '->', APP_CONFIG.storageKey);
+                    break;
+                }
+            }
+        }
+        if (savedRaw) {
+            const parsed = JSON.parse(savedRaw);
             const validRecords = ensureUniqueRecordIds(Array.isArray(parsed) ? parsed : []);
             AppState.updateRecords(validRecords);
             // 同步到全局变量
