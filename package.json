@@ -1,0 +1,94 @@
+{
+  "name": "sccipc-finance-manager",
+  "version": "2.0.0",
+  "description": "SCCIPC智能车实验室财务管理系统 - 专为实验室设计的现代化财务管理工具",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve . -p 8080",
+    "dev": "npx serve . -p 3000",
+    "build": "echo 'No build process needed for static site'",
+    "test": "echo 'No tests specified'",
+    "lint": "eslint script_final.js",
+    "format": "prettier --write *.js *.css *.html *.md",
+    "serve": "python -m http.server 8080",
+    "deploy": "gh-pages -d .",
+    "audit": "npm audit",
+    "security-check": "npm audit --audit-level moderate"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/onemott/personal-finance-manager.git"
+  },
+  "keywords": [
+    "finance",
+    "management",
+    "accounting",
+    "laboratory",
+    "sccipc",
+    "smart-car",
+    "pwa",
+    "javascript",
+    "html5",
+    "css3",
+    "responsive",
+    "invoice",
+    "expense-tracker",
+    "budget"
+  ],
+  "author": {
+    "name": "SCCIPC Team",
+    "email": "sccipc@example.com",
+    "url": "https://github.com/onemott"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/onemott/personal-finance-manager/issues"
+  },
+  "homepage": "https://onemott.github.io/personal-finance-manager/",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "prettier": "^2.8.0",
+    "serve": "^14.0.0",
+    "gh-pages": "^4.0.0"
+  },
+  "peerDependencies": {
+    "font-awesome": "^6.0.0"
+  },
+  "config": {
+    "port": 8080,
+    "host": "localhost"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/onemott"
+  },
+  "files": [
+    "index.html",
+    "style.css",
+    "script_final.js",
+    "manifest.json",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "API.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md"
+  ],
+  "directories": {
+    "doc": "./docs"
+  },
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  }
+}
