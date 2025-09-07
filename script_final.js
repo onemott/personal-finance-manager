@@ -1268,8 +1268,9 @@ function clearAllData() {
     records = [];
     filteredRecords = [];
     selectedIds.clear();
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(STORAGE_KEY + '_lastSaved');
+    localStorage.removeItem(APP_CONFIG.storageKey);
+    localStorage.removeItem(APP_CONFIG.storageKey + '_lastSaved');
+    localStorage.removeItem(APP_CONFIG.storageKey + '_version');
     
     updateDashboard();
     updateRecordTable();
@@ -1477,7 +1478,7 @@ function updateStorageInfo() {
     }
     
     if (lastSaved) {
-        const lastSavedTime = localStorage.getItem(STORAGE_KEY + '_lastSaved');
+        const lastSavedTime = localStorage.getItem(APP_CONFIG.storageKey + '_lastSaved');
         if (lastSavedTime) {
             lastSaved.textContent = new Date(lastSavedTime).toLocaleString();
         } else {
